@@ -10,7 +10,7 @@ namespace ClusterEmulator
     {
         public WayForSend[] Way_For_Send { get; set; }
 
-        public string TypeFunctionValue { get; set; }
+        public string TypeSendData { get; set; }
 
         public double CurentMaxMin { get; set; }
     }

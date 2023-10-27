@@ -14,7 +14,7 @@ namespace ClusterEmulator
         public ClusterInfo()
         {
             PORT = 2000;
-            IP = "192.168.1.75";
+            IP = "192.168.1.73";
         }
     }
 }

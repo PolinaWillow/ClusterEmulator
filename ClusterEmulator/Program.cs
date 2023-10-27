@@ -11,19 +11,27 @@ namespace ClusterEmulator
     {
         static void Main(string[] args)
         {
+            Statistic statistic = new Statistic();
+
             //Получение данных через сокет
             ClusterInfo clasterInfo = new ClusterInfo();
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Any/*clasterInfo.IP*/, clasterInfo.PORT);
             socket.Bind(endPoint);
             socket.Listen(100000000);
-            
+
+            int count = 0;
+
             while (true)
             {
-                Console.WriteLine("waiting for new connection...");
+
+                //Console.WriteLine("waiting for new connection...");
                 Socket newSocket = socket.Accept();
                 MemoryStream memoryStream = new MemoryStream();
-                Console.WriteLine("new connection...");
+                //Console.WriteLine("new connection...");
+
+                statistic.start_useful = DateTime.Now;
+
                 byte[] buffer = new byte[1024];
                 int readBytes = newSocket.Receive(buffer);
                 while (readBytes > 0)
@@ -38,40 +46,66 @@ namespace ClusterEmulator
                         break;
                     }
                 }
-                Console.WriteLine("data received...");
+                //Console.WriteLine("data received...");
                 byte[] totalBytes = memoryStream.ToArray();
                 memoryStream.Close();
                 string readData = Encoding.Default.GetString(totalBytes);
 
                 //Преобразование входной строки json в массив данных
-                Console.WriteLine(readData);
-                InputData inputData = JsonSerializer.Deserialize<InputData>(readData);
-                for (int i = 0; i < inputData.Way_For_Send.Length; i++) {
+                //Console.WriteLine(readData);
 
-                    Console.Write(inputData.Way_For_Send[i].SendValue+"-"+ inputData.Way_For_Send[i].ValueType+"; ");
-                }
-                Console.WriteLine();
-
-                //Подсчет значения целевой функции
-                double resultFunction = 0;
-                if (inputData.TypeFunctionValue == "val")
+                try
                 {
-                    resultFunction = FindValueOfFunction(inputData.Way_For_Send);
-                }
-                else if (inputData.TypeFunctionValue == "max")
-                {
-                    resultFunction = FindMax(inputData.Way_For_Send, inputData.CurentMaxMin);
-                }
-                else if (inputData.TypeFunctionValue == "min") {
-                    resultFunction = FindMin(inputData.Way_For_Send, inputData.CurentMaxMin);
-                }
-                
+                    InputData inputData = JsonSerializer.Deserialize<InputData>(readData);
+                    //for (int i = 0; i < inputData.Way_For_Send.Length; i++) {
 
-                string dataToSend = JsonSerializer.Serialize(resultFunction);
-                byte[] dataToSendBytes = Encoding.Default.GetBytes(dataToSend);
-                newSocket.Send(dataToSendBytes);
-                newSocket.Close();
-                Console.WriteLine("data sent...");
+                    //    Console.Write(inputData.Way_For_Send[i].SendValue+"-"+ inputData.Way_For_Send[i].ValueType+"; ");
+                    //}
+                    //Console.WriteLine();
+
+                    //Подсчет значения целевой функции
+                    double resultFunction = 0;
+                    if (inputData.TypeSendData == "findValue")
+                    {
+                        resultFunction = FindValueOfFunction(inputData.Way_For_Send);
+                    }
+
+
+                    string dataToSend = JsonSerializer.Serialize(resultFunction);
+                    byte[] dataToSendBytes = Encoding.Default.GetBytes(dataToSend);
+                    newSocket.Send(dataToSendBytes);
+                    newSocket.Close();
+                    //Console.WriteLine("data sent...");
+                }
+                catch (Exception ex)
+                {
+                    string comand = JsonSerializer.Deserialize<string>(readData);
+                    if(comand == "start")
+                    {
+                        statistic.start_all = DateTime.Now;
+                        Console.WriteLine("start_all: " + statistic.start_all);
+                    }
+                    if(comand == "end")
+                    {
+                        Console.WriteLine(count);
+                        statistic.end_all = DateTime.Now;
+                        statistic.AllWorkTime();
+                        Console.WriteLine("UsefulWorkTime: " + statistic.usefulWorkTime);
+                        Console.WriteLine("AllWorkTime: " + statistic.allWorkTime);
+                    }
+
+                    string dataToSend = JsonSerializer.Serialize(true);
+                    byte[] dataToSendBytes = Encoding.Default.GetBytes(dataToSend);
+                    newSocket.Send(dataToSendBytes);
+                    newSocket.Close();
+                }
+
+                statistic.end_useful = DateTime.Now;
+                statistic.UsefulWorkTime();
+
+
+                count++;
+
             }
         }
 
@@ -84,17 +118,6 @@ namespace ClusterEmulator
                 Value += 20;
             }
             return Value;
-        }
-
-        public static double FindMax(WayForSend[] agentWay, double CurentMaxMin) {
-            double value = FindValueOfFunction(agentWay);
-            return value >= CurentMaxMin ? value : CurentMaxMin;
-        }
-
-        public static double FindMin(WayForSend[] agentWay, double CurentMaxMin)
-        {
-            double value = FindValueOfFunction(agentWay);
-            return value <= CurentMaxMin ? value : CurentMaxMin;
         }
     }
 }
