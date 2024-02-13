@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClusterEmulator
+namespace ClusterEmulator.Postman.Calculation
 {
     public class WayForSend
     {
@@ -12,7 +12,8 @@ namespace ClusterEmulator
 
         public string ValueType { get; set; }
 
-        public WayForSend() {
+        public WayForSend()
+        {
             SendValue = "";
             ValueType = "";
         }

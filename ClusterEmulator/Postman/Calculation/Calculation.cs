@@ -4,14 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClusterEmulator
+namespace ClusterEmulator.Postman.Calculation
 {
-    public class InputData
+    internal class Calculation
     {
         public WayForSend[] Way_For_Send { get; set; }
-
-        public string TypeSendData { get; set; }
-
-        public double CurentMaxMin { get; set; }
     }
 }

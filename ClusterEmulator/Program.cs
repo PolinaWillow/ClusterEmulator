@@ -4,6 +4,10 @@ using System.Net;
 using System.Text;
 using System;
 using System.Text.Json;
+using ClusterEmulator.Postman;
+using System.Windows.Input;
+using ClusterEmulator.Postman.Calculation;
+using System.Net.WebSockets;
 
 namespace ClusterEmulator
 {
@@ -24,15 +28,13 @@ namespace ClusterEmulator
 
             while (true)
             {
-
-                //Console.WriteLine("waiting for new connection...");
-                Socket newSocket = socket.Accept();
+                Socket newSocket = socket.Accept(); //Новое подключение к сокету
                 MemoryStream memoryStream = new MemoryStream();
-                //Console.WriteLine("new connection...");
 
-                statistic.start_useful = DateTime.Now;
 
-                byte[] buffer = new byte[1024];
+                statistic.start_useful = DateTime.Now; //Сбор статистики по полезной нагрузке
+
+                byte[] buffer = new byte[1024]; //Чтение и конвертация данных из сокета
                 int readBytes = newSocket.Receive(buffer);
                 while (readBytes > 0)
                 {
@@ -46,66 +48,60 @@ namespace ClusterEmulator
                         break;
                     }
                 }
-                //Console.WriteLine("data received...");
+                
                 byte[] totalBytes = memoryStream.ToArray();
                 memoryStream.Close();
                 string readData = Encoding.Default.GetString(totalBytes);
 
-                //Преобразование входной строки json в массив данных
-                //Console.WriteLine(readData);
-
-                try
+                //Преобразование данных в Sender
+                Sender data = JsonSerializer.Deserialize<Sender>(readData);  
+                
+                switch (data.Header)
                 {
-                    InputData inputData = JsonSerializer.Deserialize<InputData>(readData);
-                    //for (int i = 0; i < inputData.Way_For_Send.Length; i++) {
+                    case "StatusCommunication":
+                        Console.WriteLine("Поступил запрос от StatusCommunication");
+                        Console.WriteLine(data.Body);
+                        if (data.Body == "start")
+                        {
+                            Console.WriteLine("Поступил запрос на начало сессии");
+                            statistic.start_all = DateTime.Now;
+                            Console.WriteLine("start_all: " + statistic.start_all);
+                        }
+                        if (data.Body == "end")
+                        {
+                            Console.WriteLine("Поступил запрос на конец сессии");
+                            Console.WriteLine(count);
+                            statistic.end_all = DateTime.Now;
+                            statistic.AllWorkTime();
+                            Console.WriteLine("UsefulWorkTime: " + statistic.usefulWorkTime);
+                            Console.WriteLine("AllWorkTime: " + statistic.allWorkTime);
+                        }
 
-                    //    Console.Write(inputData.Way_For_Send[i].SendValue+"-"+ inputData.Way_For_Send[i].ValueType+"; ");
-                    //}
-                    //Console.WriteLine();
+                        Sender res = new Sender();
+                        res.AddData("bool", "true");
+                        SendResponse(newSocket, res);
 
-                    //Подсчет значения целевой функции
-                    double resultFunction = 0;
-                    if (inputData.TypeSendData == "findValue")
-                    {
-                        resultFunction = FindValueOfFunction(inputData.Way_For_Send);
-                    }
+                        break;
 
+                    case "Calculation":
+                        //Console.WriteLine("Поступил запрос на расчет данных");
+                        Calculation inputData = JsonSerializer.Deserialize<Calculation>(data.Body);       
 
-                    string dataToSend = JsonSerializer.Serialize(resultFunction);
-                    byte[] dataToSendBytes = Encoding.Default.GetBytes(dataToSend);
-                    newSocket.Send(dataToSendBytes);
-                    newSocket.Close();
-                    //Console.WriteLine("data sent...");
-                }
-                catch (Exception ex)
-                {
-                    string comand = JsonSerializer.Deserialize<string>(readData);
-                    if(comand == "start")
-                    {
-                        statistic.start_all = DateTime.Now;
-                        Console.WriteLine("start_all: " + statistic.start_all);
-                    }
-                    if(comand == "end")
-                    {
-                        Console.WriteLine(count);
-                        statistic.end_all = DateTime.Now;
-                        statistic.AllWorkTime();
-                        Console.WriteLine("UsefulWorkTime: " + statistic.usefulWorkTime);
-                        Console.WriteLine("AllWorkTime: " + statistic.allWorkTime);
-                    }
+                        //Подсчет значения целевой функции
+                        double resultFunction = FindValueOfFunction(inputData.Way_For_Send);
 
-                    string dataToSend = JsonSerializer.Serialize(true);
-                    byte[] dataToSendBytes = Encoding.Default.GetBytes(dataToSend);
-                    newSocket.Send(dataToSendBytes);
-                    newSocket.Close();
+                        Sender resultCalculat = new Sender();
+                        resultCalculat.AddData("double", resultFunction.ToString());
+
+                        SendResponse(newSocket, resultCalculat);
+
+                        break;
                 }
 
                 statistic.end_useful = DateTime.Now;
                 statistic.UsefulWorkTime();
-
-
+                
                 count++;
-
             }
         }
 
@@ -118,6 +114,15 @@ namespace ClusterEmulator
                 Value += 20;
             }
             return Value;
+        }
+
+        public static void SendResponse(Socket socket, Sender res)
+        {
+            string dataToSend = JsonSerializer.Serialize(res);
+            byte[] dataToSendBytes = Encoding.Default.GetBytes(dataToSend);
+            socket.Send(dataToSendBytes);
+
+            socket.Close();
         }
     }
 }

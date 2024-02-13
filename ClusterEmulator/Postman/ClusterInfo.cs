@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ClusterEmulator
+namespace ClusterEmulator.Postman
 {
     internal class ClusterInfo
     {
