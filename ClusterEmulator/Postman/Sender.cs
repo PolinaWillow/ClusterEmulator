@@ -44,5 +44,10 @@ namespace ClusterEmulator.Postman
         {
             return "Sender";
         }
+
+        public void Print()
+        {
+            Console.WriteLine("{\n\tHeder: " + this.Header + "\n\tBody: " + this.Body + "\n}");
+        }
     }
 }

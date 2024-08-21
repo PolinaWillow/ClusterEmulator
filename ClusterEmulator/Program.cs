@@ -16,6 +16,8 @@ namespace ClusterEmulator
         static void Main(string[] args)
         {
             Statistic statistic = new Statistic();
+            FileManager fileManager = new FileManager();
+            string fileName = fileManager.CreateStatisticFile("log");
 
             //Получение данных через сокет
             ClusterInfo clasterInfo = new ClusterInfo();
@@ -32,7 +34,7 @@ namespace ClusterEmulator
                 MemoryStream memoryStream = new MemoryStream();
 
 
-                statistic.start_useful = DateTime.Now; //Сбор статистики по полезной нагрузке
+                
 
                 byte[] buffer = new byte[1024]; //Чтение и конвертация данных из сокета
                 int readBytes = newSocket.Receive(buffer);
@@ -53,6 +55,8 @@ namespace ClusterEmulator
                 memoryStream.Close();
                 string readData = Encoding.Default.GetString(totalBytes);
 
+               //Console.WriteLine(readData);
+
                 //Преобразование данных в Sender
                 Sender data = JsonSerializer.Deserialize<Sender>(readData);  
                 
@@ -61,13 +65,14 @@ namespace ClusterEmulator
                     case "StatusCommunication":
                         Console.WriteLine("Поступил запрос от StatusCommunication");
                         Console.WriteLine(data.Body);
-                        if (data.Body == "start")
+                        string status = JsonSerializer.Deserialize<String>(data.Body);
+                        if (status == "start")
                         {
                             Console.WriteLine("Поступил запрос на начало сессии");
                             statistic.start_all = DateTime.Now;
                             Console.WriteLine("start_all: " + statistic.start_all);
                         }
-                        if (data.Body == "end")
+                        if (status == "end")
                         {
                             Console.WriteLine("Поступил запрос на конец сессии");
                             Console.WriteLine(count);
@@ -75,6 +80,14 @@ namespace ClusterEmulator
                             statistic.AllWorkTime();
                             Console.WriteLine("UsefulWorkTime: " + statistic.usefulWorkTime);
                             Console.WriteLine("AllWorkTime: " + statistic.allWorkTime);
+
+                            //Запись данных в файл
+                            string writeStr = statistic.usefulWorkTime + "\t" + statistic.allWorkTime;
+                            fileManager.Write(fileName, writeStr);
+
+                            //Очистка статистики
+                            statistic.Clear();
+
                         }
 
                         Sender res = new Sender();
@@ -84,26 +97,31 @@ namespace ClusterEmulator
                         break;
 
                     case "Calculation":
+                        statistic.start_useful = DateTime.Now; //Сбор статистики по полезной нагрузке
+
                         //Console.WriteLine("Поступил запрос на расчет данных");
-                        Calculation inputData = JsonSerializer.Deserialize<Calculation>(data.Body);       
+                        Calculation inputData = JsonSerializer.Deserialize<Calculation>(data.Body);
 
                         //Подсчет значения целевой функции
-                        double resultFunction = FindValueOfFunction(inputData.Way_For_Send);
+                        ClusterFunctions clusterFunctions = new ClusterFunctions();
+                        double resultFunction = clusterFunctions.MultiFunction(inputData.Way_For_Send);
+                        //double resultFunction = clusterFunctions.SchwefelFunction(inputData.Way_For_Send);
+                        //Console.WriteLine(resultFunction);
 
                         Sender resultCalculat = new Sender();
                         resultCalculat.AddData("double", resultFunction.ToString());
+                        resultCalculat.Print();
 
                         SendResponse(newSocket, resultCalculat);
 
+                        statistic.end_useful = DateTime.Now;
+                        statistic.UsefulWorkTime();
                         break;
                 }
-
-                statistic.end_useful = DateTime.Now;
-                statistic.UsefulWorkTime();
-                
                 count++;
             }
         }
+
 
         public static double FindValueOfFunction(WayForSend[] agentWay)
         {

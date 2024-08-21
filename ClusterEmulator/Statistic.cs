@@ -28,12 +28,23 @@ namespace ClusterEmulator
 
         public void AllWorkTime()
         {
-            allWorkTime = end_all - start_all;
+            allWorkTime = this.end_all - this.start_all;
         }
 
         public void UsefulWorkTime()
         {
-            usefulWorkTime += end_useful - start_useful;
+            usefulWorkTime +=this.end_useful - this.start_useful;
+            //Console.WriteLine(usefulWorkTime);
+        }
+
+        public void Clear()
+        {
+            start_all = new DateTime();
+            end_all = new DateTime();
+            allWorkTime = new TimeSpan();
+            usefulWorkTime = new TimeSpan();
+            start_useful = new DateTime();
+            end_useful = new DateTime();
         }
     }
 }
