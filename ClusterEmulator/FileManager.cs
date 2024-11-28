@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -55,6 +56,19 @@ namespace ClusterEmulator
                 sw.Close();
             }
             return outputDataFile;
+        }
+
+        /// <summary>
+        /// Преобразование времени в нужный формат (с,мс)
+        /// </summary>
+        /// <param name="time"></param>
+        /// <returns></returns>
+        public string FormatTime(TimeSpan time)
+        {
+            string newTimeFormat = "";
+            newTimeFormat = time.TotalSeconds.ToString().Replace('.', ',');
+
+            return newTimeFormat;
         }
 
         /// <summary>

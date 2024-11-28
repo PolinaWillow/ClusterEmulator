@@ -8,6 +8,7 @@ using ClusterEmulator.Postman;
 using System.Windows.Input;
 using ClusterEmulator.Postman.Calculation;
 using System.Net.WebSockets;
+using System.Threading.Tasks;
 
 namespace ClusterEmulator
 {
@@ -18,6 +19,8 @@ namespace ClusterEmulator
             Statistic statistic = new Statistic();
             FileManager fileManager = new FileManager();
             string fileName = fileManager.CreateStatisticFile("log");
+
+            int timeDelay = 0; //Задержка отправления ответа
 
             //Получение данных через сокет
             ClusterInfo clasterInfo = new ClusterInfo();
@@ -58,21 +61,29 @@ namespace ClusterEmulator
                //Console.WriteLine(readData);
 
                 //Преобразование данных в Sender
-                Sender data = JsonSerializer.Deserialize<Sender>(readData);  
-                
+                Sender data = JsonSerializer.Deserialize<Sender>(readData);
+                data.Print();
+
+
                 switch (data.Header)
                 {
                     case "StatusCommunication":
-                        Console.WriteLine("Поступил запрос от StatusCommunication");
-                        Console.WriteLine(data.Body);
-                        string status = JsonSerializer.Deserialize<String>(data.Body);
-                        if (status == "start")
+                        //Console.WriteLine("Поступил запрос от StatusCommunication");
+                        //Console.WriteLine(data.Body);
+                        StatusCommunication body = JsonSerializer.Deserialize<StatusCommunication>(data.Body);
+                        //Console.WriteLine(status);
+                        if (body.Status == "start")
                         {
                             Console.WriteLine("Поступил запрос на начало сессии");
+                            Console.WriteLine(data.Header);
                             statistic.start_all = DateTime.Now;
                             Console.WriteLine("start_all: " + statistic.start_all);
+                            timeDelay = body.timeDelayStatus;
+                            string writeStr = "\nЗапуск от "+ DateTime.Now +"\nКоличество потоков агентов "+body.threadAgentCount + "\nЗадержка: " + timeDelay;
+                            fileManager.Write(fileName, writeStr);
+
                         }
-                        if (status == "end")
+                        if (body.Status == "end")
                         {
                             Console.WriteLine("Поступил запрос на конец сессии");
                             Console.WriteLine(count);
@@ -82,7 +93,7 @@ namespace ClusterEmulator
                             Console.WriteLine("AllWorkTime: " + statistic.allWorkTime);
 
                             //Запись данных в файл
-                            string writeStr = statistic.usefulWorkTime + "\t" + statistic.allWorkTime;
+                            string writeStr = fileManager.FormatTime(statistic.usefulWorkTime) + "\t" + fileManager.FormatTime(statistic.allWorkTime);
                             fileManager.Write(fileName, writeStr);
 
                             //Очистка статистики
@@ -99,6 +110,9 @@ namespace ClusterEmulator
                     case "Calculation":
                         statistic.start_useful = DateTime.Now; //Сбор статистики по полезной нагрузке
 
+                        //Задержка в мс от 0,1с до 1с
+                        Task.Delay(timeDelay);
+
                         //Console.WriteLine("Поступил запрос на расчет данных");
                         Calculation inputData = JsonSerializer.Deserialize<Calculation>(data.Body);
 
@@ -110,7 +124,7 @@ namespace ClusterEmulator
 
                         Sender resultCalculat = new Sender();
                         resultCalculat.AddData("double", resultFunction.ToString());
-                        resultCalculat.Print();
+                        //resultCalculat.Print();
 
                         SendResponse(newSocket, resultCalculat);
 

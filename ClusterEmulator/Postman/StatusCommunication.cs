@@ -12,10 +12,16 @@ namespace ClusterEmulator.Postman
         /// Ствтус соединения с кластером
         /// </summary>
         public string Status { get; set; }
-        public StatusCommunication(string status = "")
-        {
-            this.Status = status;
-        }
+        public int timeDelayStatus { get; set; }
+
+        public int threadAgentCount { get; set; }
+
+    //    public StatusCommunication(string status, int timeDelay, int threadAgentCount)
+    //    {
+    //        this.Status = status;
+    //        this.timeDelayStatus = timeDelay;
+    //        this.threadAgentCount = threadAgentCount;
+    //}
 
         /// <summary>
         /// Изменение статуса
