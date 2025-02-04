@@ -36,7 +36,22 @@ namespace ClusterEmulator
             //Console.WriteLine(x);
             //Console.WriteLine(y);
 
-            double result = -Math.Pow(x, 2)-Math.Pow((x+y), 2);
+            double result = -Math.Pow(x, 2) - Math.Pow((x + y), 2);
+            //Console.WriteLine(result);
+            return result;
+
+        }
+
+
+        public double TwoExtremeFunction(WayForSend[] agentWay)
+        {
+            double x = Convert.ToDouble(agentWay[0].SendValue);
+            double y = Convert.ToDouble(agentWay[1].SendValue);
+
+            //Console.WriteLine(x);
+            //Console.WriteLine(y);
+
+            double result = -3*Math.Pow(x, 2) - 4*Math.Pow(y, 2)-23*Math.Cos(x-0.5);
             //Console.WriteLine(result);
             return result;
 

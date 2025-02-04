@@ -9,6 +9,9 @@ using System.Windows.Input;
 using ClusterEmulator.Postman.Calculation;
 using System.Net.WebSockets;
 using System.Threading.Tasks;
+using System.Threading;
+using AntColonyExtLib.ClusterInteraction.Models.Calculation;
+using System.Collections.Generic;
 
 namespace ClusterEmulator
 {
@@ -17,10 +20,11 @@ namespace ClusterEmulator
         static void Main(string[] args)
         {
             Statistic statistic = new Statistic();
+            HistoryLog historyLog = new HistoryLog();
             FileManager fileManager = new FileManager();
             string fileName = fileManager.CreateStatisticFile("log");
 
-            int timeDelay = 0; //Задержка отправления ответа
+            
 
             //Получение данных через сокет
             ClusterInfo clasterInfo = new ClusterInfo();
@@ -29,41 +33,65 @@ namespace ClusterEmulator
             socket.Bind(endPoint);
             socket.Listen(100000000);
 
-            int count = 0;
+            
 
             while (true)
             {
                 Socket newSocket = socket.Accept(); //Новое подключение к сокету
+                Thread clientThread = new Thread(() => Handler(newSocket, statistic, historyLog, fileManager, fileName));
+                clientThread.Start();
+               
+            }
+        }
+
+        public static void Handler (Socket clientSocket, Statistic statistic, HistoryLog historyLog, FileManager fileManager, string fileName)
+        {
+
+            int timeDelay = 0; //Задержка отправления ответа
+            int count = 0;
+
+            while (true)
+            {
+                //Определяем сколько времени читаются данные
+                statistic.start_read = DateTime.Now;
+
                 MemoryStream memoryStream = new MemoryStream();
 
-
-                
-
-                byte[] buffer = new byte[1024]; //Чтение и конвертация данных из сокета
-                int readBytes = newSocket.Receive(buffer);
+                byte[] buffer = new byte[1024 * 4]; //Чтение и конвертация данных из сокета
+                int readBytes = clientSocket.Receive(buffer);
                 while (readBytes > 0)
                 {
                     memoryStream.Write(buffer, 0, readBytes);
-                    if (socket.Available > 0)
+                    if (clientSocket.Available > 0)
                     {
-                        readBytes = newSocket.Receive(buffer);
+                        readBytes = clientSocket.Receive(buffer);
                     }
                     else
                     {
                         break;
                     }
                 }
-                
+
                 byte[] totalBytes = memoryStream.ToArray();
                 memoryStream.Close();
                 string readData = Encoding.Default.GetString(totalBytes);
 
-               //Console.WriteLine(readData);
+                statistic.end_read = DateTime.Now;
+                statistic.ReadTime();
 
+                //Console.WriteLine(readData);
+
+                if (totalBytes.Length == 0)
+                {
+                    return;
+                }
+                
                 //Преобразование данных в Sender
                 Sender data = JsonSerializer.Deserialize<Sender>(readData);
                 data.Print();
 
+
+                ClusterFunctions clusterFunctions = new ClusterFunctions();
 
                 switch (data.Header)
                 {
@@ -79,9 +107,20 @@ namespace ClusterEmulator
                             statistic.start_all = DateTime.Now;
                             Console.WriteLine("start_all: " + statistic.start_all);
                             timeDelay = body.timeDelayStatus;
-                            string writeStr = "\nЗапуск от "+ DateTime.Now +"\nКоличество потоков агентов "+body.threadAgentCount + "\nЗадержка: " + timeDelay;
-                            fileManager.Write(fileName, writeStr);
 
+                            //Проверка, если задержка и количество потоков совпадает с предыдущим стартом, то запись не повторяем
+                            if (!(historyLog.timeDelay == timeDelay) || !(historyLog.threadAgentCount == body.threadAgentCount))
+                            {
+                                string writeStr = "\nЗапуск от " + DateTime.Now + "\nКоличество потоков агентов " + body.threadAgentCount + "\nЗадержка: " + timeDelay;
+                                fileManager.Write(fileName, writeStr);
+                                historyLog.timeDelay = timeDelay;
+                                historyLog.threadAgentCount = body.threadAgentCount;
+                            }
+
+
+                            Sender res = new Sender();
+                            res.AddData("bool", "true");
+                            SendResponse(clientSocket, res);
                         }
                         if (body.Status == "end")
                         {
@@ -89,6 +128,7 @@ namespace ClusterEmulator
                             Console.WriteLine(count);
                             statistic.end_all = DateTime.Now;
                             statistic.AllWorkTime();
+                            statistic.AddReadTime("all");
                             Console.WriteLine("UsefulWorkTime: " + statistic.usefulWorkTime);
                             Console.WriteLine("AllWorkTime: " + statistic.allWorkTime);
 
@@ -99,12 +139,12 @@ namespace ClusterEmulator
                             //Очистка статистики
                             statistic.Clear();
 
+                            Sender res = new Sender();
+                            res.AddData("bool", "true");
+                            SendResponse(clientSocket, res);
+
+                            //clientSocket.Close(); ;
                         }
-
-                        Sender res = new Sender();
-                        res.AddData("bool", "true");
-                        SendResponse(newSocket, res);
-
                         break;
 
                     case "Calculation":
@@ -117,23 +157,56 @@ namespace ClusterEmulator
                         Calculation inputData = JsonSerializer.Deserialize<Calculation>(data.Body);
 
                         //Подсчет значения целевой функции
-                        ClusterFunctions clusterFunctions = new ClusterFunctions();
                         double resultFunction = clusterFunctions.MultiFunction(inputData.Way_For_Send);
                         //double resultFunction = clusterFunctions.SchwefelFunction(inputData.Way_For_Send);
+                        //double resultFunction = clusterFunctions.TwoExtremeFunction(inputData.Way_For_Send);
+
                         //Console.WriteLine(resultFunction);
 
                         Sender resultCalculat = new Sender();
                         resultCalculat.AddData("double", resultFunction.ToString());
                         //resultCalculat.Print();
 
-                        SendResponse(newSocket, resultCalculat);
+                        SendResponse(clientSocket, resultCalculat);
 
                         statistic.end_useful = DateTime.Now;
                         statistic.UsefulWorkTime();
+                        statistic.AddReadTime("useful");
+                        break;
+
+                    case "MultyCalculation":
+                        statistic.start_useful = DateTime.Now; //Сбор статистики по полезной нагрузке
+
+                        //Задержка в мс от 0,1с до 1с
+                        Task.Delay(timeDelay);
+
+                        //Console.WriteLine("Поступил запрос на расчет данных");
+                        MultyCalculation MultyCalculation_req = new MultyCalculation(JsonSerializer.Deserialize<List<Calculation_v2>>(data.Body));
+
+                        //Подсчет значения целевой функции
+                        
+                        foreach (Calculation_v2 item in MultyCalculation_req.calculationList)
+                        {
+                            item.result = clusterFunctions.MultiFunction(item.Way_For_Send);
+                            //item.result = clusterFunctions.SchwefelFunction(item.Way_For_Send);
+                            //item.result = clusterFunctions.TwoExtremeFunction(item.Way_For_Send);
+                        }
+                        
+
+                        Sender Calculat_res = new Sender();
+                        Calculat_res.AddData(MultyCalculation_req.TypeOf(), MultyCalculation_req.GetJSON());
+                        //resultCalculat.Print();
+
+                        SendResponse(clientSocket, Calculat_res);
+
+                        statistic.end_useful = DateTime.Now;
+                        statistic.UsefulWorkTime();
+                        statistic.AddReadTime("useful");
                         break;
                 }
                 count++;
             }
+
         }
 
 
@@ -154,7 +227,7 @@ namespace ClusterEmulator
             byte[] dataToSendBytes = Encoding.Default.GetBytes(dataToSend);
             socket.Send(dataToSendBytes);
 
-            socket.Close();
+            //socket.Close();
         }
     }
 }
