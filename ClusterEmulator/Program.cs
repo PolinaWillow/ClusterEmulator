@@ -17,6 +17,8 @@ namespace ClusterEmulator
 {
     internal class Program
     {
+        static ParamsForTesting paramsForTesting = new ParamsForTesting();
+
         static void Main(string[] args)
         {
             Statistic statistic = new Statistic();
@@ -157,9 +159,20 @@ namespace ClusterEmulator
                         Calculation inputData = JsonSerializer.Deserialize<Calculation>(data.Body);
 
                         //Подсчет значения целевой функции
-                        double resultFunction = clusterFunctions.MultiFunction(inputData.Way_For_Send);
-                        //double resultFunction = clusterFunctions.SchwefelFunction(inputData.Way_For_Send);
-                        //double resultFunction = clusterFunctions.TwoExtremeFunction(inputData.Way_For_Send);
+                        double resultFunction;
+                        switch (paramsForTesting.TargetFunction)
+                        {
+                            case "MultiFunction":
+                                resultFunction = clusterFunctions.MultiFunction(inputData.Way_For_Send);
+                                break;
+                            case "SchwefelFunction":
+                                resultFunction = clusterFunctions.SchwefelFunction(inputData.Way_For_Send);
+                                break;
+                            case "TwoExtremeFunction":
+                                resultFunction = clusterFunctions.TwoExtremeFunction(inputData.Way_For_Send);
+                                break;
+                            default: resultFunction = 0.0; break;
+                        }
 
                         //Console.WriteLine(resultFunction);
 
@@ -187,9 +200,19 @@ namespace ClusterEmulator
                         
                         foreach (Calculation_v2 item in MultyCalculation_req.calculationList)
                         {
-                            item.result = clusterFunctions.MultiFunction(item.Way_For_Send);
-                            //item.result = clusterFunctions.SchwefelFunction(item.Way_For_Send);
-                            //item.result = clusterFunctions.TwoExtremeFunction(item.Way_For_Send);
+                            switch (paramsForTesting.TargetFunction)
+                            {
+                                case "MultiFunction":
+                                    item.result = clusterFunctions.MultiFunction(item.Way_For_Send);
+                                    break;
+                                case "SchwefelFunction":
+                                    item.result = clusterFunctions.SchwefelFunction(item.Way_For_Send);
+                                    break;
+                                case "TwoExtremeFunction":
+                                    item.result = clusterFunctions.TwoExtremeFunction(item.Way_For_Send);
+                                    break;
+                                default: resultFunction = 0.0; break;
+                            }
                         }
                         
 
