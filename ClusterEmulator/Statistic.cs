@@ -21,6 +21,12 @@ namespace ClusterEmulator
         public DateTime end_read { get; set; }
         public TimeSpan readWorkTime { get; set; }
 
+        public DateTime currentUseFul_start { get; set; }
+        public DateTime currentUseFul_end { get; set; }
+        public TimeSpan CurrentUseFull { get; set; }
+
+        public IntervalRecords_Dictionary iterationRecords { get; set; }
+
 
         public Statistic()
         {
@@ -33,6 +39,13 @@ namespace ClusterEmulator
             readWorkTime = new TimeSpan();
             start_read = new DateTime();
             end_read = new DateTime();
+
+            currentUseFul_start = new DateTime();
+            currentUseFul_end = new DateTime();
+
+            CurrentUseFull = new TimeSpan();
+
+            this.iterationRecords = new IntervalRecords_Dictionary();
         }
 
         public void AllWorkTime()
@@ -44,6 +57,14 @@ namespace ClusterEmulator
         {
             usefulWorkTime += this.end_useful - this.start_useful;
             //Console.WriteLine(usefulWorkTime);
+        }
+
+        public void currentTime(int iteration)
+        {
+            TimeSpan CurrentAllTime = DateTime.Now - this.start_all;
+            iterationRecords.Add(iteration, "allWorkTime", CurrentAllTime); //Записываем текущее общее время работы
+            iterationRecords.Add(iteration, "usefulWorkTime", usefulWorkTime); //Записываем текущее общее время работы
+
         }
 
         public void ReadTime(){
@@ -76,6 +97,13 @@ namespace ClusterEmulator
             readWorkTime = new TimeSpan();
             start_read = new DateTime();
             end_read = new DateTime();
+
+            currentUseFul_start = new DateTime();
+            currentUseFul_end = new DateTime();
+
+            CurrentUseFull = new TimeSpan();
+
+            this.iterationRecords = new IntervalRecords_Dictionary();
         }
     }
 }

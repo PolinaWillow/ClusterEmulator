@@ -19,14 +19,18 @@ namespace ClusterEmulator
     {
         static ParamsForTesting paramsForTesting = new ParamsForTesting();
 
+        static int CountWay = 0; //Количество посчитанных данные
+        static int curentIteration = 5000; //номер итерации для записи
+
         static void Main(string[] args)
         {
             Statistic statistic = new Statistic();
             HistoryLog historyLog = new HistoryLog();
             FileManager fileManager = new FileManager();
             string fileName = fileManager.CreateStatisticFile("log");
+            string fileName_iterations = fileManager.CreateStatisticFile("log_iterations", "log_iterations");
 
-            
+
 
             //Получение данных через сокет
             ClusterInfo clasterInfo = new ClusterInfo();
@@ -40,13 +44,13 @@ namespace ClusterEmulator
             while (true)
             {
                 Socket newSocket = socket.Accept(); //Новое подключение к сокету
-                Thread clientThread = new Thread(() => Handler(newSocket, statistic, historyLog, fileManager, fileName));
+                Thread clientThread = new Thread(() => Handler(newSocket, statistic, historyLog, fileManager, fileName, fileName_iterations));
                 clientThread.Start();
                
             }
         }
 
-        public static void Handler (Socket clientSocket, Statistic statistic, HistoryLog historyLog, FileManager fileManager, string fileName)
+        public static void Handler (Socket clientSocket, Statistic statistic, HistoryLog historyLog, FileManager fileManager, string fileName, string fileName_iterations)
         {
 
             int timeDelay = 0; //Задержка отправления ответа
@@ -111,14 +115,18 @@ namespace ClusterEmulator
                             timeDelay = body.timeDelayStatus;
 
                             //Проверка, если задержка и количество потоков совпадает с предыдущим стартом, то запись не повторяем
-                            if (!(historyLog.timeDelay == timeDelay) || !(historyLog.threadAgentCount == body.threadAgentCount))
+                            if (!(historyLog.timeDelay == timeDelay) || !(historyLog.threadAgentCount == body.threadAgentCount) || !(historyLog.packegeSize == body.PakegeSize))
                             {
-                                string writeStr = "\nЗапуск от " + DateTime.Now + "\nКоличество потоков агентов " + body.threadAgentCount + "\nЗадержка: " + timeDelay;
+                                string writeStr = "\nЗапуск от " + DateTime.Now + "\nКоличество потоков агентов " + body.threadAgentCount + "\nЗадержка: " + timeDelay + "\nРазмер пакета: "+ body.PakegeSize;
                                 fileManager.Write(fileName, writeStr);
+                                fileManager.Write(fileName_iterations, writeStr);
                                 historyLog.timeDelay = timeDelay;
                                 historyLog.threadAgentCount = body.threadAgentCount;
+                                historyLog.packegeSize = body.PakegeSize;
                             }
 
+                            CountWay = 0;
+                            curentIteration = paramsForTesting.initIteration;
 
                             Sender res = new Sender();
                             res.AddData("bool", "true");
@@ -137,6 +145,14 @@ namespace ClusterEmulator
                             //Запись данных в файл
                             string writeStr = fileManager.FormatTime(statistic.usefulWorkTime) + "\t" + fileManager.FormatTime(statistic.allWorkTime);
                             fileManager.Write(fileName, writeStr);
+                            
+
+                            //Записываем поитерациоону статистику
+                            foreach (var record in statistic.iterationRecords.dictionary)
+                            {
+                                writeStr = record.Value.interval + "\t" + fileManager.FormatTime(record.Value.current_usefulWorkTime) + "\t" + fileManager.FormatTime(record.Value.current_allWorkTime);
+                                fileManager.Write(fileName_iterations, writeStr);
+                            }
 
                             //Очистка статистики
                             statistic.Clear();
@@ -189,7 +205,7 @@ namespace ClusterEmulator
 
                     case "MultyCalculation":
                         statistic.start_useful = DateTime.Now; //Сбор статистики по полезной нагрузке
-
+                        statistic.currentUseFul_start = DateTime.Now;
                         //Задержка в мс от 0,1с до 1с
                         Task.Delay(timeDelay);
 
@@ -204,17 +220,19 @@ namespace ClusterEmulator
                             {
                                 case "MultiFunction":
                                     item.result = clusterFunctions.MultiFunction(item.Way_For_Send);
+                                    CountWay++;
                                     break;
                                 case "SchwefelFunction":
                                     item.result = clusterFunctions.SchwefelFunction(item.Way_For_Send);
+                                    CountWay++;
                                     break;
                                 case "TwoExtremeFunction":
                                     item.result = clusterFunctions.TwoExtremeFunction(item.Way_For_Send);
+                                    CountWay++;
                                     break;
                                 default: resultFunction = 0.0; break;
                             }
                         }
-                        
 
                         Sender Calculat_res = new Sender();
                         Calculat_res.AddData(MultyCalculation_req.TypeOf(), MultyCalculation_req.GetJSON());
@@ -225,6 +243,14 @@ namespace ClusterEmulator
                         statistic.end_useful = DateTime.Now;
                         statistic.UsefulWorkTime();
                         statistic.AddReadTime("useful");
+
+                        //Проверка итераций c погрешностью попадания
+                        if (CountWay >= curentIteration && CountWay<= (curentIteration+10))
+                        {
+                            statistic.currentTime(CountWay);
+                            curentIteration += paramsForTesting.stepIteration; //Определяем следующую итерацию для записи
+                        }
+
                         break;
                 }
                 count++;

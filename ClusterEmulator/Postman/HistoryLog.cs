@@ -11,9 +11,12 @@ namespace ClusterEmulator.Postman
         public int timeDelay { get; set; }
         public int threadAgentCount { get; set; }
 
+        public int packegeSize { get; set; }
+
         public HistoryLog() { 
             this.timeDelay = 0;
             this.threadAgentCount = 0;
+            this.packegeSize = 0;
         }
     }
 }

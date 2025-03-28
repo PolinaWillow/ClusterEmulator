@@ -37,7 +37,7 @@ namespace ClusterEmulator
         }
 
 
-        public string CreateStatisticFile(string name, string comment = null)
+        public string CreateStatisticFile(string name, string typeFile = null, string comment = null)
         {
             string outputDataFile = CreateFileName(name);
             if (!File.Exists(outputDataFile))
@@ -53,7 +53,16 @@ namespace ClusterEmulator
                         sw.WriteLine(comment);
                         sw.WriteLine("-------------------------------------------------------------\n");
                     }
-                    sw.WriteLine("UsefulWorkTime \t AllWorkTime");
+                    switch (typeFile)
+                    {
+                        case "log_iterations":
+                            sw.WriteLine("Iterations \t UsefulWorkTime \t AllWorkTime");
+                            break;
+                        default:
+                            sw.WriteLine("UsefulWorkTime \t AllWorkTime");
+                            break;
+                    }
+
                     sw.Close();
                 }
             }

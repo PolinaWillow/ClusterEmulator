@@ -16,12 +16,7 @@ namespace ClusterEmulator.Postman
 
         public int threadAgentCount { get; set; }
 
-    //    public StatusCommunication(string status, int timeDelay, int threadAgentCount)
-    //    {
-    //        this.Status = status;
-    //        this.timeDelayStatus = timeDelay;
-    //        this.threadAgentCount = threadAgentCount;
-    //}
+        public int PakegeSize { get; set; }
 
         /// <summary>
         /// Изменение статуса
