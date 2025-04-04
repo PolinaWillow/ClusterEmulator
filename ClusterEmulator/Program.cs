@@ -63,7 +63,7 @@ namespace ClusterEmulator
 
                 MemoryStream memoryStream = new MemoryStream();
 
-                byte[] buffer = new byte[1024 * 4]; //Чтение и конвертация данных из сокета
+                byte[] buffer = new byte[1024 * 1024]; //Чтение и конвертация данных из сокета
                 int readBytes = clientSocket.Receive(buffer);
                 while (readBytes > 0)
                 {
